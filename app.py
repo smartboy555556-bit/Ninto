@@ -14,144 +14,202 @@ ADMIN_PIN = os.environ.get("ADMIN_PIN", "2704")
 socketio = SocketIO(app, cors_allowed_origins="*")
 DB_FILE = "game_economy.db"
 
-# --- EMBEDDED ADMIN CONTROL MATRIX HTML ---
-ADMIN_HTML = """<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Roblox Universe Master Control Matrix</title>
-    <style>
-        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f6f9; margin: 0; padding: 0; }
-        .login-box { max-width: 400px; margin: 150px auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; border-top: 5px solid #e74c3c; }
-        .login-box h2 { color: #2c3e50; margin-bottom: 10px; font-size: 24px; }
-        .pin-input { font-size: 24px; letter-spacing: 8px; text-align: center; font-weight: bold; width: 80%; padding: 10px; margin: 20px 0; border: 2px solid #cbd5e0; border-radius: 8px; }
-        .error-text { color: #e74c3c; font-weight: bold; font-size: 14px; margin-bottom: 10px; display: block; }
-        .sidebar { width: 260px; background-color: #111; color: #fff; height: 100vh; position: fixed; padding: 20px; box-sizing: border-box; }
-        .sidebar h2 { color: #e74c3c; margin-top:0; font-size:22px; text-transform: uppercase; display: flex; align-items: center; gap: 10px; }
-        .main-content { margin-left: 260px; padding: 30px; }
-        header { background-color: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
-        header h1 { margin:0; font-size:24px; color:#2c3e50; }
-        .grid { display: grid; grid-template-columns: 2fr 1fr; gap: 30px; }
-        .card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 25px; }
-        .card h2 { margin-top:0; color:#34495e; border-bottom: 2px solid #ecf0f1; padding-bottom:10px; font-size:18px; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { text-align: left; padding: 12px; border-bottom: 1px solid #edf2f7; }
-        th { background-color: #f7fafc; color:#718096; }
-        .form-group { margin-bottom: 15px; }
-        input { width: 100%; padding: 12px; border: 1px solid #cbd5e0; border-radius: 6px; box-sizing: border-box; background-color: #f7fafc; }
-        button { background-color: #3182ce; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; transition: background 0.2s; }
-        button:hover { background-color: #2b6cb0; }
-        .game-scroll { max-height: 400px; overflow-y: auto; border: 1px solid #edf2f7; border-radius: 6px; }
-        .game-tag { font-size: 13px; color: #718096; background: #edf2f7; padding: 2px 8px; border-radius: 4px; }
-    </style>
-</head>
-<body>
-    <svg style="display: none;" xmlns="http://w3.org">
-        <defs>
-            <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#FFE66D"/>
-                <stop offset="50%" stop-color="#FFB703"/>
-                <stop offset="100%" stop-color="#FB8500"/>
-            </linearGradient>
-            <linearGradient id="silverGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#FFFFFF"/>
-                <stop offset="100%" stop-color="#CBD5E1"/>
-            </linearGradient>
-        </defs>
-        <symbol id="prodlox-coin" viewBox="0 0 100 100">
-            <polygon points="50,3 93,27 93,73 50,97 7,73 7,27" fill="url(#goldGrad)"/>
-            <polygon points="50,11 86,31 86,69 50,89 14,69 14,31" fill="#11131A"/>
-            <circle cx="50" cy="50" r="32" fill="none" stroke="#FFD166" stroke-width="2" stroke-opacity="0.45"/>
-            <circle cx="53" cy="21" r="6" fill="none" stroke="#FFD166" stroke-width="3.5"/>
-            <polygon points="49,26 62,28 55,42 50,51 40,50 42,37" fill="url(#silverGrad)"/>
-            <polygon points="50,51 66,46 58,56 64,71 59,86 48,75 41,60" fill="url(#goldGrad)"/>
-            <circle cx="48" cy="51" r="3.5" fill="#EF233C"/>
-        </symbol>
-    </svg>
+def get_db():
+    conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
+    return conn
 
-    {% if display_login %}
-    <div class="login-box">
-        <svg width="54" height="54" style="margin-bottom: 10px;"><use href="#prodlox-coin"/></svg>
-        <h2>🔒 Security Verification</h2>
-        <p style="color:#7f8c8d; font-size: 14px;">Enter your Master PIN code to open your system control node dashboards.</p>
-        {% if auth_failed %}
-        <span class="error-text">❌ ACCESS DENIED: Invalid Verification PIN</span>
-        {% endif %}
-        <form action="/admin/login" method="POST">
-            <input type="password" name="pin" class="pin-input" maxlength="4" placeholder="••••" required autofocus>
-            <button type="submit" style="background-color: #e74c3c; font-size:16px;">Verify Pin Signature</button>
-        </form>
-    </div>
-    {% else %}
-    <div class="sidebar">
-        <h2><svg width="32" height="32"><use href="#prodlox-coin"/></svg> Roblox Custom</h2>
-        <p style="color:#2ecc71; font-weight:bold; font-size:12px;">🛡️ Secure PIN Session Verified</p>
-        <hr style="border-color:#222; margin:20px 0;">
-        <p style="color:#fff; font-weight:bold;">● Experience Database</p>
-        <p style="color:#aaa;">● Avatar Marketplace</p>
-        <p style="color:#aaa;">● Cloud Compute Server</p>
-        <a href="/admin/logout" style="color: #e74c3c; text-decoration: none; font-weight: bold; display: block; margin-top: 50px;">[→ Sign Out Hub]</a>
-    </div>
-    <div class="main-content">
-        <header>
-            <h1>Ecosystem Control Node</h1>
-            <div style="background:#e2e8f0; padding:8px 16px; border-radius:6px; font-weight:bold; font-size:14px;">Nigeria Gateway Engine Node (NGN)</div>
-        </header>
-        <div class="grid">
-            <div>
-                <div class="card">
-                    <h2>Active Platform Users</h2>
-                    <table>
-                        <thead><tr><th>Username</th><th>Email Address</th><th>Wallet Balance</th><th>Exchange Rate Match</th></tr></thead>
-                        <tbody>
-                            {% for u in users %}
-                            <tr>
-                                <td><strong>{{ u['username'] }}</strong></td>
-                                <td>{{ u['username'] }}@prodlox.game</td>
-                                <td style="color:#2f855a; font-weight:bold;">
-                                    <svg width="20" height="20" style="vertical-align: -4px; margin-right: 4px;"><use href="#prodlox-coin"/></svg>
-                                    {{ "{:,}".format(u['coins']) }}
-                                </td>
-                                <td>₦{{ "%.2f"|format(u['coin_rate']) }} / coin</td>
-                            </tr>
-                            {% else %}
-                            <tr><td colspan="4" style="text-align:center; color:#718096;">No registered players yet.</td></tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                <div class="card">
-                    <h2>Experience Directory Instance Mapping</h2>
-                    <div class="game-scroll">
-                        <table>
-                            <thead><tr><th>Game ID Key</th><th>Experience Target Name</th><th>Live Concurrent Metrics</th></tr></thead>
-                            <tbody>
-                                {% for g in games %}
-                                <tr>
-                                    <td><code class="game-tag">{{ g['game_id'] }}</code></td>
-                                    <td><strong>{{ g['game_name'] }}</strong></td>
-                                    <td style="color:#e53e3e; font-weight:bold;">🔥 {{ "{:,}".format(g['players']) }} players online</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-            <div>
-                <div class="card" style="border-top: 4px solid #dd6b20;">
-                    <h2 style="color: #dd6b20;">Inject/Overwrite Wallet Balance</h2>
-                    <form action="/admin/set-balance" method="POST">
-                        <div class="form-group"><input type="text" name="username" placeholder="Target Username" required></div>
-                        <div class="form-group"><input type="number" name="new_balance" placeholder="Set New Coin Total" required></div>
-                        <button type="submit" style="background-color: #dd6b20;">Commit Exact Balance</button>
-                    </form>
-                </div>
-                <div class="card">
-                    <h2>Platform Exchange Control</h2>
-                    <form action="/admin/modify-price" method="POST">
-                        <div class="form-group"><input type="text" name="username" placeholder="Target User Profile" required></div>
-                        <div class="form-group"><input type="number" step="0.01" name="new_price" placeholder="Target Base Price (NGN)" required></div>
-                        <button type="submit" style="background-color: #38a169;">Update Strategic Price</button>
-                    </form>
-                </div>
+def init_db():
+    with get_db() as conn:
+        conn.execute('''CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            coins INTEGER DEFAULT 100,
+            coin_rate REAL DEFAULT 10.00
+        )''')
+        try:
+            conn.execute("ALTER TABLE users ADD COLUMN coin_rate REAL DEFAULT 10.00")
+        except sqlite3.OperationalError:
+            pass
+
+        conn.execute('''CREATE TABLE IF NOT EXISTS items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL,
+            price INTEGER NOT NULL
+        )''')
+        conn.execute('''CREATE TABLE IF NOT EXISTS inventory (
+            user_id INTEGER,
+            item_id INTEGER,
+            quantity INTEGER DEFAULT 1,
+            PRIMARY KEY (user_id, item_id)
+        )''')
+        conn.execute('''CREATE TABLE IF NOT EXISTS trades (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sender_id INTEGER NOT NULL,
+            receiver_id INTEGER NOT NULL,
+            offered_item_id INTEGER,
+            offered_coins INTEGER DEFAULT 0,
+            requested_item_id INTEGER,
+            requested_coins INTEGER DEFAULT 0,
+            status TEXT DEFAULT 'pending'
+        )''')
+        conn.execute('''CREATE TABLE IF NOT EXISTS custom_games (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            creator_username TEXT NOT NULL,
+            title TEXT NOT NULL,
+            blocks_json TEXT NOT NULL
+        )''')
+        conn.execute('''CREATE TABLE IF NOT EXISTS game_directory (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            game_id TEXT UNIQUE NOT NULL,
+            game_name TEXT NOT NULL,
+            scene_path TEXT NOT NULL,
+            players INTEGER DEFAULT 1200
+        )''')
+
+        conn.execute("INSERT OR IGNORE INTO items (name, price) VALUES ('Speed Coil', 50)")
+        conn.execute("INSERT OR IGNORE INTO items (name, price) VALUES ('Gravity Coil', 75)")
+        conn.execute("INSERT OR IGNORE INTO items (name, price) VALUES ('Golden Sword', 150)")
+
+        starter_games = [
+            ("sandbox", "Voxel Sandbox", "res://MainWorld.tscn", 14520),
+            ("sky_obby", "Mega Sky Obby", "res://MainWorld.tscn", 28410),
+            ("coin_rush", "Coin Rush Simulator", "res://MainWorld.tscn", 19300),
+            ("disaster", "Natural Disaster Survival", "res://MainWorld.tscn", 34120),
+            ("tycoon", "Miner's Coin Tycoon", "res://MainWorld.tscn", 22890),
+            ("sfoth", "Sword Fight Heights", "res://MainWorld.tscn", 11450),
+            ("color_party", "Color Block Party", "res://MainWorld.tscn", 16780),
+            ("speed_run", "Speed Run 4", "res://MainWorld.tscn", 15900),
+            ("zombies", "Zombie Survival Wave", "res://MainWorld.tscn", 25600),
+            ("laser_tag", "Laser Tag Arena", "res://MainWorld.tscn", 13200),
+            ("rp_town", "Roleplay Town", "res://MainWorld.tscn", 41200),
+            ("fishing", "Fishing Simulator", "res://MainWorld.tscn", 18400),
+        ]
+        conn.executemany(
+            "INSERT OR IGNORE INTO game_directory (game_id, game_name, scene_path, players) VALUES (?, ?, ?, ?)",
+            starter_games
+        )
+        conn.commit()
+
+def _transfer_item(conn, from_user_id, to_user_id, item_id):
+    conn.execute("UPDATE inventory SET quantity = quantity - 1 WHERE user_id = ? AND item_id = ?", (from_user_id, item_id))
+    conn.execute("DELETE FROM inventory WHERE user_id = ? AND item_id = ? AND quantity <= 0", (from_user_id, item_id))
+    conn.execute('''INSERT INTO inventory (user_id, item_id, quantity) VALUES (?, ?, 1)
+        ON CONFLICT(user_id, item_id) DO UPDATE SET quantity = quantity + 1''', (to_user_id, item_id))
+
+@app.route("/", methods=["GET"])
+def home():
+    return redirect(url_for("admin_dashboard"))
+
+@app.route("/admin", methods=["GET"])
+def admin_dashboard():
+    if not session.get("admin_authenticated"):
+        return render_template_string(ADMIN_HTML, display_login=True, auth_failed=request.args.get("failed") == "1")
+    with get_db() as conn:
+        users = conn.execute("SELECT username, coins, COALESCE(coin_rate, 10.00) AS coin_rate FROM users").fetchall()
+        games = conn.execute("SELECT game_id, game_name, scene_path, players FROM game_directory ORDER BY players DESC").fetchall()
+    return render_template_string(ADMIN_HTML, display_login=False, users=users, games=games)
+
+@app.route("/admin/login", methods=["POST"])
+def admin_login():
+    if request.form.get("pin", "").strip() == ADMIN_PIN:
+        session["admin_authenticated"] = True
+        return redirect(url_for("admin_dashboard"))
+    return redirect(url_for("admin_dashboard", failed="1"))
+
+@app.route("/admin/logout", methods=["GET"])
+def admin_logout():
+    session.pop("admin_authenticated", None)
+    return redirect(url_for("admin_dashboard"))
+
+@app.route("/admin/set-balance", methods=["POST"])
+def admin_set_balance():
+    if not session.get("admin_authenticated"):
+        return redirect(url_for("admin_dashboard"))
+    username = request.form.get("username", "").strip()
+    new_balance = int(request.form.get("new_balance", 0))
+    with get_db() as conn:
+        conn.execute("UPDATE users SET coins = ? WHERE username = ?", (new_balance, username))
+        conn.commit()
+    socketio.emit("balance_update", {"username": username, "coins": new_balance})
+    return redirect(url_for("admin_dashboard"))
+
+@app.route("/admin/modify-price", methods=["POST"])
+def admin_modify_price():
+    if not session.get("admin_authenticated"):
+        return redirect(url_for("admin_dashboard"))
+    username = request.form.get("username", "").strip()
+    new_price = float(request.form.get("new_price", 10.0))
+    with get_db() as conn:
+        conn.execute("UPDATE users SET coin_rate = ? WHERE username = ?", (new_price, username))
+        conn.commit()
+    return redirect(url_for("admin_dashboard"))
+
+@app.route("/admin/add-game", methods=["POST"])
+def admin_add_game():
+    if not session.get("admin_authenticated"):
+        return redirect(url_for("admin_dashboard"))
+    game_id = request.form.get("game_id", "").strip()
+    game_name = request.form.get("game_name", "").strip()
+    scene_path = request.form.get("scene_path", "res://MainWorld.tscn").strip()
+    players = int(request.form.get("players", 1000))
+    with get_db() as conn:
+        conn.execute("INSERT OR REPLACE INTO game_directory (game_id, game_name, scene_path, players) VALUES (?, ?, ?, ?)",
+                     (game_id, game_name, scene_path, players))
+        conn.commit()
+    socketio.emit("admin_game_added", {"game_id": game_id, "game_name": game_name, "scene_path": scene_path, "players": players})
+    return redirect(url_for("admin_dashboard"))
+
+@app.route("/register", methods=["POST"])
+def register():
+    data = request.json
+    username, password = data.get("username"), data.get("password")
+    if not username or not password:
+        return jsonify({"error": "Username and password required"}), 400
+    try:
+        with get_db() as conn:
+            cursor = conn.execute("INSERT INTO users (username, password_hash) VALUES (?, ?)",
+                                  (username, generate_password_hash(password)))
+            session["user_id"] = cursor.lastrowid
+            session["username"] = username
+            conn.commit()
+        return jsonify({"message": "Registered successfully", "username": username, "coins": 100}), 201
+    except sqlite3.IntegrityError:
+        return jsonify({"error": "Username already taken"}), 409
+
+@app.route("/login", methods=["POST"])
+def login():
+    data = request.json
+    username, password = data.get("username"), data.get("password")
+    with get_db() as conn:
+        user = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
+    if user and check_password_hash(user["password_hash"], password):
+        session["user_id"] = user["id"]
+        session["username"] = user["username"]
+        return jsonify({"message": "Logged in", "username": user["username"], "coins": user["coins"]}), 200
+    return jsonify({"error": "Invalid credentials"}), 401
+
+@app.route("/shop", methods=["GET"])
+def get_shop():
+    with get_db() as conn:
+        items = conn.execute("SELECT * FROM items").fetchall()
+    return jsonify([dict(item) for item in items]), 200
+
+@app.route("/inventory", methods=["GET"])
+def get_inventory():
+    if "user_id" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+    with get_db() as conn:
+        rows = conn.execute('''SELECT items.id, items.name, inventory.quantity FROM inventory
+            JOIN items ON inventory.item_id = items.id WHERE inventory.user_id = ?''', (session["user_id"],)).fetchall()
+    return jsonify([dict(row) for row in rows]), 200
+
+@app.route("/buy", methods=["POST"])
+def buy_item():
+    if "user_id" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+    item_id = request.json.get("item_id")
+    user_id = session["user_id"]
+    with get_db() as conn:
+        user = conn.execute("SELECT coins FROM users WHERE id = ?", (user_id,)).fetchone()
